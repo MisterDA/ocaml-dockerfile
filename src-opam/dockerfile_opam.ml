@@ -36,31 +36,35 @@ let install_bubblewrap_from_source ?(prefix="/usr/local") () =
   let rel = "0.4.1" in
   let file = Fmt.strf "bubblewrap-%s.tar.xz" rel in
   let url = Fmt.strf "https://github.com/projectatomic/bubblewrap/releases/download/v%s/bubblewrap-%s.tar.xz" rel rel in
-  run "curl -fOL %s" url @@
-  run "tar xf %s" file @@
-  run "cd bubblewrap-%s && ./configure --prefix=%s && make && sudo make install" rel prefix @@
-  run "rm -rf %s bubblewrap-%s" file rel
+  add ~src:[url] ~dst:file ()
+  @@ run "tar xf %s" file
+  @@ run "cd bubblewrap-%s && ./configure --prefix=%s && make && sudo make install" rel prefix
+  @@ run "rm -rf %s bubblewrap-%s" file rel
 
 let install_bubblewrap_wrappers =
   (* Enable bubblewrap *)
-  run "echo 'wrap-build-commands: []' > ~/.opamrc-nosandbox" @@
-  run "echo 'wrap-install-commands: []' >> ~/.opamrc-nosandbox" @@
-  run "echo 'wrap-remove-commands: []' >> ~/.opamrc-nosandbox" @@
-  run "echo 'required-tools: []' >> ~/.opamrc-nosandbox" @@
-  run "echo '#!/bin/sh' > /home/opam/opam-sandbox-disable" @@
-  run "echo 'cp ~/.opamrc-nosandbox ~/.opamrc' >> /home/opam/opam-sandbox-disable" @@
-  run "echo 'echo --- opam sandboxing disabled' >> /home/opam/opam-sandbox-disable" @@
-  run "chmod a+x /home/opam/opam-sandbox-disable" @@
-  run "sudo mv /home/opam/opam-sandbox-disable /usr/bin/opam-sandbox-disable" @@
+  run
+    {|\
+printf 'wrap-build-commands: []
+wrap-install-commands: []
+wrap-remove-commands: []
+required-tools: []' >> ~/.opamrc-nosandbox && \
+printf '#!/bin/sh
+cp ~/.opamrc-nosandbox ~/.opamrc
+echo --- opam sandboxing disabled' >> /home/opam/opam-sandbox-disable && \
+chmod a+x /home/opam/opam-sandbox-disable && \
+sudo mv /home/opam/opam-sandbox-disable /usr/bin/opam-sandbox-disable|} @@
   (* Disable bubblewrap *)
-  run "echo 'wrap-build-commands: [\"%%{hooks}%%/sandbox.sh\" \"build\"]' > ~/.opamrc-sandbox" @@
-  run "echo 'wrap-install-commands: [\"%%{hooks}%%/sandbox.sh\" \"install\"]' >> ~/.opamrc-sandbox" @@
-  run "echo 'wrap-remove-commands: [\"%%{hooks}%%/sandbox.sh\" \"remove\"]' >> ~/.opamrc-sandbox" @@
-  run "echo '#!/bin/sh' > /home/opam/opam-sandbox-enable" @@
-  run "echo 'cp ~/.opamrc-sandbox ~/.opamrc' >> /home/opam/opam-sandbox-enable" @@
-  run "echo 'echo --- opam sandboxing enabled' >> /home/opam/opam-sandbox-enable" @@
-  run "chmod a+x /home/opam/opam-sandbox-enable" @@
-  run "sudo mv /home/opam/opam-sandbox-enable /usr/bin/opam-sandbox-enable"
+  run
+    {|\
+printf 'wrap-build-commands: ["%%%%{hooks}%%%%/sandbox.sh" "build"]
+wrap-install-commands: ["%%%%{hooks}%%%%/sandbox.sh" "install"]
+wrap-remove-commands: ["%%%%{hooks}%%%%/sandbox.sh" "remove"]' >> ~/.opamrc-sandbox && \
+printf '#!/bin/sh
+cp ~/.opamrc-sandbox ~/.opamrc
+echo --- opam sandboxing enabled' >> /home/opam/opam-sandbox-enable && \
+chmod a+x /home/opam/opam-sandbox-enable && \
+sudo mv /home/opam/opam-sandbox-enable /usr/bin/opam-sandbox-enable|}
 
 let header ?arch ?maintainer img tag =
   let platform =
